@@ -52,5 +52,6 @@ Ingestion to GCS/BigQuery: `upload_international_results.R`.
 - **Teams:** most active teams in the selection
 - **Goalscorers:** top scorers for filtered matches
 - **Results:** searchable match table
+- **World Cup:** 2026 unplayed fixtures (72 group-stage matches with no score yet), fixture picker, head-to-head (all competitions + World Cup-only), full schedule table
 
-You can extend tabs later (e.g. World Cup-only views, shootouts, home vs away win rates).
+You can extend later (e.g. shootouts, knockout rounds when added to the data).
