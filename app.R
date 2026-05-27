@@ -3,29 +3,73 @@ library(bslib)
 library(ggplot2)
 library(dplyr)
 library(DT)
+library(bigrquery)
 
 data_dir <- "data/international"
 if (!dir.exists(data_dir)) {
   stop("Expected data at data/international/ (run from project root).")
 }
 
-results <- read.csv(
-  file.path(data_dir, "results.csv"),
-  stringsAsFactors = FALSE,
-  na.strings = c("", "NA")
-)
-goalscorers <- read.csv(
-  file.path(data_dir, "goalscorers.csv"),
-  stringsAsFactors = FALSE,
-  na.strings = c("", "NA")
-)
+if (file.exists(".env")) {
+  readRenviron(".env")
+}
+
+env_is_true <- function(x) {
+  v <- toupper(trimws(x))
+  nzchar(v) && v %in% c("1", "TRUE", "YES", "Y")
+}
+
+load_results <- function(data_dir) {
+  csv_path <- file.path(data_dir, "results.csv")
+  if (!env_is_true(Sys.getenv("USE_BIGQUERY", ""))) {
+    message("Loading results from CSV (set USE_BIGQUERY=TRUE in .env to use BigQuery).")
+    return(
+      read.csv(
+        csv_path,
+        stringsAsFactors = FALSE,
+        na.strings = c("", "NA")
+      )
+    )
+  }
+
+  project_id <- Sys.getenv("GCP_PROJECT_ID", "")
+  cred_raw <- Sys.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+  if (!nzchar(project_id)) {
+    stop("USE_BIGQUERY=TRUE requires GCP_PROJECT_ID in .env")
+  }
+  if (!nzchar(cred_raw)) {
+    stop("USE_BIGQUERY=TRUE requires GOOGLE_APPLICATION_CREDENTIALS in .env")
+  }
+
+  cred_path <- if (startsWith(cred_raw, "/")) {
+    cred_raw
+  } else {
+    normalizePath(file.path(getwd(), cred_raw), mustWork = TRUE)
+  }
+  if (!file.exists(cred_path)) {
+    stop("Credential file not found: ", cred_path)
+  }
+
+  Sys.setenv(GOOGLE_APPLICATION_CREDENTIALS = cred_path)
+  bq_auth(path = cred_path)
+
+  dataset_id <- Sys.getenv("GCP_BQ_DATASET", "analytics")
+  table_id <- Sys.getenv("GCP_BQ_RESULTS_TABLE", "international_results")
+  dest <- bq_table(project_id, dataset_id, table_id)
+  message(
+    "Loading results from BigQuery: ",
+    project_id, ".", dataset_id, ".", table_id
+  )
+
+  bq_table_download(dest, bigint = "integer")
+}
+
+results <- load_results(data_dir)
 
 results$date <- as.Date(results$date)
 results$year <- as.integer(format(results$date, "%Y"))
 results$total_goals <- results$home_score + results$away_score
 results$neutral <- as.logical(results$neutral)
-
-goalscorers$date <- as.Date(goalscorers$date)
 
 is_wc_tournament <- function(x) {
   grepl("FIFA World Cup", x, fixed = TRUE) &
@@ -139,7 +183,8 @@ ui <- page_fluid(
         min = year_min,
         max = year_max,
         value = c(year_min, year_max),
-        sep = ""
+        sep = "",
+        ticks = FALSE
       ),
       selectizeInput(
         "h2h_competition",

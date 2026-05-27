@@ -1,6 +1,6 @@
 # World Cup Analytics
 
-Exploratory dashboard for international football match data (results, goalscorers, and related CSVs under `data/international/`).
+Exploratory dashboard for international football match data (`results.csv` and related CSVs under `data/international/`).
 
 ## Run locally
 
@@ -9,10 +9,12 @@ Exploratory dashboard for international football match data (results, goalscorer
 2. Install dependencies:
 
 ```r
-install.packages(c("shiny", "bslib", "ggplot2", "dplyr", "DT", "bsicons", "rsconnect"))
+install.packages(c("shiny", "bslib", "ggplot2", "dplyr", "DT", "bsicons", "bigrquery", "rsconnect"))
 ```
 
-3. Start the app:
+3. (Optional) Load `results` from BigQuery instead of the bundled CSV: copy `.env.example` to `.env`, set `GCP_PROJECT_ID`, `GOOGLE_APPLICATION_CREDENTIALS` (path to a service-account JSON with BigQuery read access), and `USE_BIGQUERY=TRUE`.
+
+4. Start the app from the project root (so `.env` and paths resolve):
 
 ```r
 shiny::runApp("app.R")
@@ -20,9 +22,7 @@ shiny::runApp("app.R")
 
 ## Deploy to Posit Connect Cloud
 
-Same workflow as [DSCI-532-Foodlytics-r](https://github.com/rabin0208/DSCI-532-Foodlytics-r):
-
-1. Ensure `manifest.json` sits next to `app.R` (regenerate after adding packages or changing dependencies):
+1. Ensure `manifest.json` sits next to `app.R`. Regenerate it after adding packages or changing bundled files. The repo’s `.rscignore` keeps `.env` and `service-account-key.json` out of the Connect bundle (do not commit secrets).
 
 ```r
 rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app.R")
@@ -32,14 +32,13 @@ rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app.R")
 
 3. In [Posit Connect Cloud](https://connect.posit.cloud/), connect the repo and deploy. Connect uses `manifest.json` to restore R packages.
 
-**Note:** The deployed app reads CSVs from `data/international/` in the repo. Keep those files in version control (or adjust paths if you later load from BigQuery instead).
+**Note:** By default the app reads `results.csv` from `data/international/` in the repo. With `USE_BIGQUERY=TRUE` and the same GCP env vars on the server, `results` can come from BigQuery instead.
 
 ## Data
 
 | File | Description |
 |------|-------------|
 | `results.csv` | International matches (date, teams, scores, tournament, venue) |
-| `goalscorers.csv` | Goal-level events linked to matches |
 | `shootouts.csv` | Penalty shootout outcomes |
 | `former_names.csv` | Historical country name mappings |
 
@@ -50,8 +49,5 @@ Ingestion to GCS/BigQuery: `upload_international_results.R`.
 - **Filters:** year range, tournament, team, neutral venue
 - **Overview:** matches and goals per year
 - **Teams:** most active teams in the selection
-- **Goalscorers:** top scorers for filtered matches
 - **Results:** searchable match table
 - **World Cup:** 2026 unplayed fixtures (72 group-stage matches with no score yet), fixture picker, head-to-head (all competitions + World Cup-only), full schedule table
-
-You can extend later (e.g. shootouts, knockout rounds when added to the data).
