@@ -156,10 +156,6 @@ wc_fixture_choices <- if (nrow(wc_upcoming) > 0) {
   character()
 }
 
-h2h_competitions <- sort(unique(played_results$tournament[!is.na(played_results$tournament)]))
-year_min <- min(played_results$year, na.rm = TRUE)
-year_max <- max(played_results$year, na.rm = TRUE)
-
 ui <- page_fluid(
   theme = bs_theme(bootswatch = "flatly"),
   title = "World Cup Analytics",
@@ -177,24 +173,14 @@ ui <- page_fluid(
         choices = wc_fixture_choices,
         selected = if (length(wc_fixture_choices)) wc_fixture_choices[[1]] else character()
       ),
-      sliderInput(
-        "h2h_year_range",
-        "Head-to-head year range",
-        min = year_min,
-        max = year_max,
-        value = c(year_min, year_max),
-        sep = "",
-        ticks = FALSE
-      ),
-      selectizeInput(
-        "h2h_competition",
-        "Competition",
-        choices = h2h_competitions,
-        selected = character(),
-        multiple = TRUE,
-        options = list(
-          placeholder = "All competitions"
-        )
+      selectInput(
+        "h2h_scope",
+        "Competition scope",
+        choices = c(
+          "All competitions" = "all",
+          "FIFA World Cup only" = "wc"
+        ),
+        selected = "all"
       ),
       open = "desktop"
     ),
@@ -215,12 +201,12 @@ ui <- page_fluid(
       card_header("2026 FIFA World Cup — fixture matchup"),
       uiOutput("wc_fixture_summary"),
       tags$hr(),
-      card_header("Head-to-head (wins/draws, all competitions)"),
+      card_header("Head-to-head (wins/draws)"),
       plotOutput("wc_h2h_counts_plot", height = "320px")
     ),
     layout_columns(
       card(
-        card_header("Head-to-head results (all competitions)"),
+        card_header("Head-to-head results"),
         dataTableOutput("wc_h2h_all"),
         full_screen = TRUE
       ),
@@ -242,16 +228,7 @@ ui <- page_fluid(
 
 server <- function(input, output, session) {
   output$wc_played_count <- renderText({
-    format(
-      nrow(
-        wc_played %>%
-          filter(
-            year >= input$h2h_year_range[1],
-            year <= input$h2h_year_range[2]
-          )
-      ),
-      big.mark = ","
-    )
+    format(nrow(wc_played), big.mark = ",")
   })
 
   selected_wc_fixture <- reactive({
@@ -294,14 +271,9 @@ server <- function(input, output, session) {
       return(played_results[0, , drop = FALSE])
     }
 
-    d <- h2h_matches(fx$home_team, fx$away_team, played_results) %>%
-      filter(
-        year >= input$h2h_year_range[1],
-        year <= input$h2h_year_range[2]
-      )
-
-    if (length(input$h2h_competition) > 0) {
-      d <- d %>% filter(tournament %in% input$h2h_competition)
+    d <- h2h_matches(fx$home_team, fx$away_team, played_results)
+    if (identical(input$h2h_scope, "wc")) {
+      d <- d %>% filter(is_wc_tournament(tournament))
     }
 
     d
@@ -339,11 +311,9 @@ server <- function(input, output, session) {
         x = NULL,
         y = "Head-to-head matches",
         subtitle = sprintf(
-          "Meetings: %d | Years: %d-%d%s",
+          "Meetings: %d | Scope: %s",
           s$matches,
-          input$h2h_year_range[1],
-          input$h2h_year_range[2],
-          if (length(input$h2h_competition) > 0) " | Competition filtered" else ""
+          if (identical(input$h2h_scope, "wc")) "FIFA World Cup only" else "All competitions"
         )
       ) +
       theme_minimal(base_size = 14) +
@@ -376,14 +346,9 @@ server <- function(input, output, session) {
 
   team_last_matches <- function(team_name) {
     d <- played_results %>%
-      filter(
-        (home_team == team_name | away_team == team_name),
-        year >= input$h2h_year_range[1],
-        year <= input$h2h_year_range[2]
-      )
-
-    if (length(input$h2h_competition) > 0) {
-      d <- d %>% filter(tournament %in% input$h2h_competition)
+      filter(home_team == team_name | away_team == team_name)
+    if (identical(input$h2h_scope, "wc")) {
+      d <- d %>% filter(is_wc_tournament(tournament))
     }
 
     d %>%

@@ -46,7 +46,7 @@ Ingestion to GCS/BigQuery: `upload_international_results.R`.
 
 ## Dashboard (starter views)
 
-- **Filters:** year range, tournament, team, neutral venue
+- **Filters:** fixture picker plus competition scope dropdown (all competitions vs FIFA World Cup only)
 - **Overview:** matches and goals per year
 - **Teams:** most active teams in the selection
 - **Results:** searchable match table
