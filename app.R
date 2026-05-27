@@ -112,10 +112,9 @@ wc_fixture_choices <- if (nrow(wc_upcoming) > 0) {
   character()
 }
 
-teams <- sort(unique(c(results$home_team, results$away_team)))
-tournaments <- sort(unique(results$tournament[!is.na(results$tournament)]))
-year_min <- min(results$year, na.rm = TRUE)
-year_max <- max(results$year, na.rm = TRUE)
+h2h_competitions <- sort(unique(played_results$tournament[!is.na(played_results$tournament)]))
+year_min <- min(played_results$year, na.rm = TRUE)
+year_max <- max(played_results$year, na.rm = TRUE)
 
 ui <- page_fluid(
   theme = bs_theme(bootswatch = "flatly"),
@@ -134,6 +133,24 @@ ui <- page_fluid(
         choices = wc_fixture_choices,
         selected = if (length(wc_fixture_choices)) wc_fixture_choices[[1]] else character()
       ),
+      sliderInput(
+        "h2h_year_range",
+        "Head-to-head year range",
+        min = year_min,
+        max = year_max,
+        value = c(year_min, year_max),
+        sep = ""
+      ),
+      selectizeInput(
+        "h2h_competition",
+        "Competition",
+        choices = h2h_competitions,
+        selected = character(),
+        multiple = TRUE,
+        options = list(
+          placeholder = "All competitions"
+        )
+      ),
       open = "desktop"
     ),
     layout_columns(
@@ -144,7 +161,7 @@ ui <- page_fluid(
       ),
       value_box(
         title = "World Cup matches (played)",
-        value = format(nrow(wc_played), big.mark = ","),
+      value = textOutput("wc_played_count"),
         showcase = bsicons::bs_icon("clock-history")
       ),
       fill = FALSE
@@ -154,7 +171,7 @@ ui <- page_fluid(
       uiOutput("wc_fixture_summary"),
       tags$hr(),
       card_header("Head-to-head (wins/draws, all competitions)"),
-      uiOutput("wc_h2h_counts")
+      plotOutput("wc_h2h_counts_plot", height = "320px")
     ),
     layout_columns(
       card(
@@ -166,14 +183,32 @@ ui <- page_fluid(
       fill = FALSE
     ),
     card(
-      card_header("All 2026 group-stage fixtures"),
-      dataTableOutput("wc_upcoming_tbl"),
+      card_header("Last 10 games — selected home team"),
+      dataTableOutput("wc_home_last10"),
+      full_screen = TRUE
+    ),
+    card(
+      card_header("Last 10 games — selected away team"),
+      dataTableOutput("wc_away_last10"),
       full_screen = TRUE
     )
   )
 )
 
 server <- function(input, output, session) {
+  output$wc_played_count <- renderText({
+    format(
+      nrow(
+        wc_played %>%
+          filter(
+            year >= input$h2h_year_range[1],
+            year <= input$h2h_year_range[2]
+          )
+      ),
+      big.mark = ","
+    )
+  })
+
   selected_wc_fixture <- reactive({
     if (is.null(input$wc_fixture) || !nzchar(input$wc_fixture)) {
       return(NULL)
@@ -208,38 +243,66 @@ server <- function(input, output, session) {
     )
   })
 
-  output$wc_h2h_counts <- renderUI({
+  h2h_filtered_matches <- reactive({
     fx <- selected_wc_fixture()
     if (is.null(fx)) {
-      return(p(class = "text-muted", "Select a fixture."))
+      return(played_results[0, , drop = FALSE])
     }
 
-    s <- h2h_summary(fx$home_team, fx$away_team, played_results)
-    if (s$matches == 0) {
-      return(p(class = "text-muted", "No previous meetings between these teams in your dataset."))
-    }
-
-    tagList(
-      tags$p(class = "text-muted mb-2", sprintf("Meetings: %d (all competitions)", s$matches)),
-      layout_columns(
-        value_box(
-          title = fx$home_team,
-          value = s$team_a_wins,
-          showcase = bsicons::bs_icon("arrow-up")
-        ),
-        value_box(
-          title = "Draws",
-          value = s$draws,
-          showcase = bsicons::bs_icon("dash")
-        ),
-        value_box(
-          title = fx$away_team,
-          value = s$team_b_wins,
-          showcase = bsicons::bs_icon("arrow-down")
-        ),
-        fill = FALSE
+    d <- h2h_matches(fx$home_team, fx$away_team, played_results) %>%
+      filter(
+        year >= input$h2h_year_range[1],
+        year <= input$h2h_year_range[2]
       )
+
+    if (length(input$h2h_competition) > 0) {
+      d <- d %>% filter(tournament %in% input$h2h_competition)
+    }
+
+    d
+  })
+
+  output$wc_h2h_counts_plot <- renderPlot({
+    fx <- selected_wc_fixture()
+    if (is.null(fx)) {
+      plot.new()
+      text(0.5, 0.5, "Select a fixture.", cex = 1.1)
+      return(invisible(NULL))
+    }
+
+    s <- h2h_summary(fx$home_team, fx$away_team, h2h_filtered_matches())
+    if (s$matches == 0) {
+      plot.new()
+      text(0.5, 0.5, "No previous meetings between these teams in your dataset.", cex = 1.0)
+      return(invisible(NULL))
+    }
+
+    counts <- data.frame(
+      outcome = factor(
+        c(fx$home_team, "Draws", fx$away_team),
+        levels = c(fx$home_team, "Draws", fx$away_team)
+      ),
+      n = c(s$team_a_wins, s$draws, s$team_b_wins)
     )
+
+    ggplot(counts, aes(x = outcome, y = n, fill = outcome)) +
+      geom_col(width = 0.65, show.legend = FALSE) +
+      geom_text(aes(label = n), vjust = -0.4, size = 6) +
+      scale_fill_manual(values = c("#2ca25f", "#636363", "#de2d26")) +
+      scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+      labs(
+        x = NULL,
+        y = "Head-to-head matches",
+        subtitle = sprintf(
+          "Meetings: %d | Years: %d-%d%s",
+          s$matches,
+          input$h2h_year_range[1],
+          input$h2h_year_range[2],
+          if (length(input$h2h_competition) > 0) " | Competition filtered" else ""
+        )
+      ) +
+      theme_minimal(base_size = 14) +
+      theme(panel.background = element_rect(fill = "white"))
   })
 
   format_h2h_table <- function(d) {
@@ -263,18 +326,57 @@ server <- function(input, output, session) {
   output$wc_h2h_all <- renderDataTable({
     fx <- selected_wc_fixture()
     if (is.null(fx)) return(data.frame(Message = "Select a fixture above."))
-    format_h2h_table(h2h_matches(fx$home_team, fx$away_team, played_results))
+    format_h2h_table(h2h_filtered_matches())
   }, options = list(pageLength = 8, order = list(list(0, "desc"))))
 
-  output$wc_upcoming_tbl <- renderDataTable({
-    wc_upcoming %>%
+  team_last_matches <- function(team_name) {
+    d <- played_results %>%
+      filter(
+        (home_team == team_name | away_team == team_name),
+        year >= input$h2h_year_range[1],
+        year <= input$h2h_year_range[2]
+      )
+
+    if (length(input$h2h_competition) > 0) {
+      d <- d %>% filter(tournament %in% input$h2h_competition)
+    }
+
+    d %>%
+      arrange(desc(date)) %>%
+      slice_head(n = 10) %>%
       mutate(
-        Date = format(date, "%Y-%m-%d"),
-        Fixture = paste(home_team, "vs", away_team),
-        Venue = paste(city, country, sep = ", ")
+        Result = sprintf("%d – %d", home_score, away_score),
+        Venue = ifelse(home_team == team_name, "Home", "Away"),
+        Team = team_name,
+        Opponent = ifelse(home_team == team_name, away_team, home_team)
       ) %>%
-      select(Date, Fixture, Venue, Neutral = neutral)
-  }, options = list(pageLength = 15, order = list(list(0, "asc"))))
+      select(
+        Date = date,
+        Team,
+        Opponent,
+        Result,
+        Venue,
+        Tournament = tournament,
+        City = city
+      )
+  }
+
+  output$wc_home_last10 <- renderDataTable({
+    fx <- selected_wc_fixture()
+    if (is.null(fx)) return(data.frame(Message = "Select a fixture above."))
+    d <- team_last_matches(fx$home_team)
+    if (nrow(d) == 0) return(data.frame(Message = "No matches found for this team in the selected filters."))
+    d
+  }, options = list(pageLength = 10, order = list(list(0, "desc"))))
+
+  output$wc_away_last10 <- renderDataTable({
+    fx <- selected_wc_fixture()
+    if (is.null(fx)) return(data.frame(Message = "Select a fixture above."))
+    d <- team_last_matches(fx$away_team)
+    if (nrow(d) == 0) return(data.frame(Message = "No matches found for this team in the selected filters."))
+    d
+  }, options = list(pageLength = 10, order = list(list(0, "desc"))))
+
 }
 
 shinyApp(ui, server)
