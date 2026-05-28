@@ -44,7 +44,7 @@ rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "src/app.R")
 | `shootouts.csv` | Penalty shootout outcomes |
 | `former_names.csv` | Historical country name mappings |
 
-Ingestion to GCS/BigQuery: `upload_international_results.R`.
+Ingestion to GCS/BigQuery: `src/upload_international_results.R` (run from repo root).
 
 ## Dashboard (starter views)
 
