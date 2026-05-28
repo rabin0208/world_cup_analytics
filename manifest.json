@@ -2842,10 +2842,13 @@
       "checksum": "900ecf6f83ccd78ace2cc75d80ece2f6"
     },
     "app.R": {
-      "checksum": "928456b6cd15f54e92c87f6df42ed28e"
+      "checksum": "f83ff2eb2b0346bf7b21a483dfe003c1"
     },
     "data/international/former_names.csv": {
       "checksum": "c5961a79f3be6de6e6bf370b6295fdd8"
+    },
+    "data/international/goalscorers.csv": {
+      "checksum": "0c9404df5220ca9ff1f766a21d56bc47"
     },
     "data/international/results.csv": {
       "checksum": "31c3a1a2d547bfdb16ee20129f436f10"
@@ -2854,10 +2857,22 @@
       "checksum": "b21bc8541b73caa7e4de840309167979"
     },
     "README.md": {
-      "checksum": "0467fc0136c1127f43142944c0bb81be"
+      "checksum": "40c5475c7b5bc14703cc79d8f3c15fb8"
     },
-    "upload_international_results.R": {
-      "checksum": "1c09e9be460769a03f2927a595737225"
+    "src/R/analytics.R": {
+      "checksum": "e87c580ce3969b184af8b9fd4a8a3b72"
+    },
+    "src/R/config.R": {
+      "checksum": "9c57536dec4ea039bde6ef2569eb2b09"
+    },
+    "src/R/server.R": {
+      "checksum": "534c8dca61ba7752d3f93f23ef42afd4"
+    },
+    "src/R/ui.R": {
+      "checksum": "294d2684770a29003e3c50278612269f"
+    },
+    "src/upload_international_results.R": {
+      "checksum": "87cba628c80576d6e70e1aa21fb68004"
     }
   },
   "users": null

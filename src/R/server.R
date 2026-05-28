@@ -46,7 +46,7 @@ create_server <- function(wc_played, wc_upcoming, played_results) {
 
       d <- h2h_matches(fx$home_team, fx$away_team, played_results)
       if (identical(input$h2h_scope, "wc")) {
-        d <- d %>% filter(is_wc_tournament(tournament))
+        d <- d |> filter(is_wc_tournament(tournament))
       }
 
       d

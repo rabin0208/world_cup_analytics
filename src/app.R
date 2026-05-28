@@ -33,12 +33,12 @@ data_dir <- file.path(project_root, "data", "international")
 results <- load_results(data_dir, project_root)
 results <- prepare_results(results)
 
-wc_results <- results %>% filter(is_wc_tournament(tournament))
-wc_played <- wc_results %>% filter(is_played(.))
-wc_upcoming <- wc_results %>%
-  filter(!is_played(.)) %>%
+wc_results <- results |> filter(is_wc_tournament(tournament))
+wc_played <- wc_results |> filter(is_played(home_score, away_score))
+wc_upcoming <- wc_results |>
+  filter(!is_played(home_score, away_score)) |>
   arrange(date, home_team)
-played_results <- results %>% filter(is_played(.))
+played_results <- results |> filter(is_played(home_score, away_score))
 
 wc_fixture_choices <- build_fixture_choices(wc_upcoming)
 

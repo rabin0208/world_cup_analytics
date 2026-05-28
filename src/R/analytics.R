@@ -3,16 +3,16 @@ is_wc_tournament <- function(x) {
     !grepl("qualification", x, ignore.case = TRUE)
 }
 
-is_played <- function(d) {
-  !is.na(d$home_score) & !is.na(d$away_score)
+is_played <- function(home_score, away_score) {
+  !is.na(home_score) & !is.na(away_score)
 }
 
 h2h_matches <- function(team_a, team_b, data) {
-  data %>%
+  data |>
     filter(
       (home_team == team_a & away_team == team_b) |
         (home_team == team_b & away_team == team_a)
-    ) %>%
+    ) |>
     arrange(desc(date))
 }
 
@@ -81,10 +81,10 @@ format_h2h_table <- function(d) {
   if (is.null(d) || nrow(d) == 0) {
     return(data.frame(Message = "No prior meetings."))
   }
-  d %>%
+  d |>
     mutate(
       Result = sprintf("%d - %d", home_score, away_score)
-    ) %>%
+    ) |>
     select(
       Date = date,
       Home = home_team,
@@ -96,21 +96,21 @@ format_h2h_table <- function(d) {
 }
 
 team_last_matches <- function(team_name, played_results, scope) {
-  d <- played_results %>%
+  d <- played_results |>
     filter(home_team == team_name | away_team == team_name)
   if (identical(scope, "wc")) {
-    d <- d %>% filter(is_wc_tournament(tournament))
+    d <- d |> filter(is_wc_tournament(tournament))
   }
 
-  d %>%
-    arrange(desc(date)) %>%
-    slice_head(n = 10) %>%
+  d |>
+    arrange(desc(date)) |>
+    slice_head(n = 10) |>
     mutate(
       Result = sprintf("%d - %d", home_score, away_score),
       Venue = ifelse(home_team == team_name, "Home", "Away"),
       Team = team_name,
       Opponent = ifelse(home_team == team_name, away_team, home_team)
-    ) %>%
+    ) |>
     select(
       Date = date,
       Team,
