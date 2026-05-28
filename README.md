@@ -4,7 +4,7 @@ Exploratory dashboard for international football match data (`results.csv` and r
 
 ## Run locally
 
-1. Open this folder in RStudio and set the working directory to the project root (**Session → Set Working Directory → To Source File Location** when `app.R` is open).
+1. Open this folder in RStudio and set the working directory to the project root.
 
 2. Install dependencies:
 
@@ -17,18 +17,20 @@ install.packages(c("shiny", "bslib", "ggplot2", "dplyr", "DT", "bsicons", "bigrq
 4. Start the app from the project root (so `.env` and paths resolve):
 
 ```r
-shiny::runApp("app.R")
+shiny::runApp("src/app.R")
 ```
+
+Compatibility launcher (legacy path) is still available at `app.R`.
 
 ## Deploy to Posit Connect Cloud
 
-1. Ensure `manifest.json` sits next to `app.R`. Regenerate it after adding packages or changing bundled files. The repo’s `.rscignore` keeps `.env` and `service-account-key.json` out of the Connect bundle (do not commit secrets).
+1. Ensure `manifest.json` sits at the repo root. Regenerate it after adding packages or changing bundled files. The repo’s `.rscignore` keeps `.env` and `service-account-key.json` out of the Connect bundle (do not commit secrets).
 
 ```r
-rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app.R")
+rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "src/app.R")
 ```
 
-2. Commit and push `app.R`, `manifest.json`, and `data/international/` to GitHub.
+2. Commit and push `src/app.R`, `src/R/`, `manifest.json`, and `data/international/` to GitHub.
 
 3. In [Posit Connect Cloud](https://connect.posit.cloud/), connect the repo and deploy. Connect uses `manifest.json` to restore R packages.
 
